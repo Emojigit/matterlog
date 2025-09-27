@@ -43,7 +43,8 @@ def process_chat(channel_name: str, messages_generator: Generator[dict, None, No
 
         os.makedirs(logfile_dir, exist_ok=True)
         with open(logfile_path, "a", encoding="utf-8") as logfile:
-            logfile.write(f"{time.isoformat()}\t{username}\t{text}\n")
+            for line in text.splitlines():
+                logfile.write(f"{time.isoformat()}\t{username}\t{line}\n")
 
         print(f"INFO: {time.isoformat()} #{channel_name} <{username}>: {text}")
 
