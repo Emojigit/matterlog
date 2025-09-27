@@ -33,7 +33,7 @@ def process_chat(channel_name: str, messages_generator: Generator[dict, None, No
         username = message["username"]
         text = message["text"]
         timestamp = message["timestamp"]  # 2025-09-27T11:58:59.936761682-04:00
-        timestamp = timestamp[0:26] + timestamp[29:]  # trim nanoseconds
+        timestamp = timestamp[0:26] + timestamp[-6:]  # trim nanoseconds
         time = datetime.strptime(
             timestamp, r'%Y-%m-%dT%H:%M:%S.%f%z').astimezone(timezone.utc)
         year, month, day = time.year, time.month, time.day
