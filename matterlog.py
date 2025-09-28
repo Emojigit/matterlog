@@ -1,6 +1,7 @@
 from typing import Generator
 from datetime import datetime, timezone
 import os
+import signal
 
 import configparser
 import asyncio
@@ -56,7 +57,19 @@ async def process_chat(channel_name: str, messages_generator: Generator[dict, No
 async def process(channel_name: str, base_url: str, save_path: str, sleep_time: int, token: str = None):
     print(f"INFO: Starting to process channel {channel_name}")
     gen = matterbridge_api_listener(base_url, sleep_time, token)
-    await process_chat(channel_name, gen, save_path)
+    try:
+        await process_chat(channel_name, gen, save_path)
+    except asyncio.exceptions.CancelledError:
+        print(f"INFO: Stopping processing channel {channel_name}")
+
+
+async def shutdown(sig, tasks):  # https://stackoverflow.com/a/79612074/12805899
+    print(f"Caught signal: {sig.name}")
+    for task in tasks:
+        task.cancel()
+
+    await asyncio.gather(*tasks, return_exceptions=True)
+    print("Shutdown complete.")
 
 
 async def main() -> int:
@@ -68,20 +81,23 @@ async def main() -> int:
 
     sleep_time = int(config['server'].get('sleep_time', '5'))
 
-    try:
-        async with asyncio.TaskGroup() as tg:
-            for section in config.sections():
-                if section[0:8] != "channel.":
-                    continue
-                channel_name = section[8:]
-                base_url = config[section]['base_url']
-                token = config[section].get('token', None)
-                save_path = os.path.join(
-                    config['server']['save_path'], channel_name)
-                tg.create_task(
-                    process(channel_name, base_url, save_path, sleep_time, token))
-    except asyncio.CancelledError:
-        print("INFO: Interrupted by user")
+    loop = asyncio.get_running_loop()
+    tasks = []
+    for section in config.sections():
+        if section[0:8] != "channel.":
+            continue
+        channel_name = section[8:]
+        base_url = config[section]['base_url']
+        token = config[section].get('token', None)
+        save_path = os.path.join(
+            config['server']['save_path'], channel_name)
+        tasks.append(loop.create_task(
+            process(channel_name, base_url, save_path, sleep_time, token)))
+
+    for s in (signal.SIGINT, signal.SIGTERM):
+        loop.add_signal_handler(s,
+                                lambda s=s: asyncio.create_task(shutdown(s, tasks)))
+    await asyncio.gather(*tasks)
 
     return 0
 
