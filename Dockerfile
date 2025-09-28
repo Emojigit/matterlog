@@ -9,4 +9,4 @@ COPY COPYING.txt /app/COPYING.txt
 
 WORKDIR /app
 VOLUME ["/app/logs"]
-CMD ["python", "matterlog.py"]
+ENTRYPOINT ["python", "-u", "matterlog.py"]
