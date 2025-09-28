@@ -8,7 +8,7 @@ import aiofiles
 import aiohttp
 
 
-async def matterbridge_api_listener(base_url: str, token: str = None) -> Generator[dict, None, None]:
+async def matterbridge_api_listener(base_url: str, sleep_time: int, token: str = None) -> Generator[dict, None, None]:
     header = {
         "User-Agent": "matterlog/1.0",
         "Accept": "application/json",
@@ -29,6 +29,7 @@ async def matterbridge_api_listener(base_url: str, token: str = None) -> Generat
                 messages = await responce.json()
                 for message in messages:
                     yield message
+            await asyncio.sleep(sleep_time)
 
 
 async def process_chat(channel_name: str, messages_generator: Generator[dict, None, None], save_path: str):
@@ -52,9 +53,9 @@ async def process_chat(channel_name: str, messages_generator: Generator[dict, No
         print(f"INFO: {time.isoformat()} #{channel_name} <{username}>: {text}")
 
 
-async def process(channel_name: str, base_url: str, save_path: str, token: str = None):
+async def process(channel_name: str, base_url: str, save_path: str, sleep_time: int, token: str = None):
     print(f"INFO: Starting to process channel {channel_name}")
-    gen = matterbridge_api_listener(base_url, token)
+    gen = matterbridge_api_listener(base_url, sleep_time, token)
     await process_chat(channel_name, gen, save_path)
 
 
@@ -64,6 +65,8 @@ async def main() -> int:
 
     if 'save_path' not in config['server']:
         config['server']['save_path'] = './logs'
+
+    sleep_time = int(config['server'].get('sleep_time', '5'))
 
     try:
         async with asyncio.TaskGroup() as tg:
@@ -76,7 +79,7 @@ async def main() -> int:
                 save_path = os.path.join(
                     config['server']['save_path'], channel_name)
                 tg.create_task(
-                    process(channel_name, base_url, save_path, token))
+                    process(channel_name, base_url, save_path, sleep_time, token))
     except asyncio.CancelledError:
         print("INFO: Interrupted by user")
 
