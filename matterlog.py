@@ -57,7 +57,8 @@ async def process_chat(channel_name: str, messages_generator: Generator[dict, No
             hour=int(timestamp_matches[4]),
             minute=int(timestamp_matches[5]),
             second=int(timestamp_matches[6]),
-            microsecond=int(timestamp_matches[7][0:6]),
+            microsecond=int(
+                timestamp_matches[7][0:min(6, len(timestamp_matches[7]))]),
             tzinfo=tz
         ).astimezone(timezone.utc)
         year, month, day = time.year, time.month, time.day
