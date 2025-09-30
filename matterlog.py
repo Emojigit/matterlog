@@ -1,12 +1,16 @@
 from typing import Generator
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import os
+import re
 import signal
 
 import configparser
 import asyncio
 import aiofiles
 import aiohttp
+
+time_regex = re.compile(
+    r'(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})\.(\d+)([+-])(\d{2}):(\d{2})')
 
 
 async def matterbridge_api_listener(base_url: str, sleep_time: int, token: str = None) -> Generator[dict, None, None]:
@@ -37,10 +41,25 @@ async def process_chat(channel_name: str, messages_generator: Generator[dict, No
     async for message in messages_generator:
         username = message["username"]
         text = message["text"]
-        timestamp = message["timestamp"]  # 2025-09-27T11:58:59.936761682-04:00
-        timestamp = timestamp[0:26] + timestamp[-6:]  # trim nanoseconds
-        time = datetime.strptime(
-            timestamp, r'%Y-%m-%dT%H:%M:%S.%f%z').astimezone(timezone.utc)
+        # 2025-09-27T11:58:59.936761682-04:00
+        timestamp_raw = message["timestamp"]
+        timestamp_matches = time_regex.match(timestamp_raw)
+        if not timestamp_matches:
+            print(f"WARNING: Invalid timestamp format: {timestamp_raw}")
+            continue
+        tz = timezone((-1 if timestamp_matches[8] == '-' else 1) * timedelta(
+            hours=int(timestamp_matches[9]),
+            minutes=int(timestamp_matches[10])))
+        time = datetime(
+            year=int(timestamp_matches[1]),
+            month=int(timestamp_matches[2]),
+            day=int(timestamp_matches[3]),
+            hour=int(timestamp_matches[4]),
+            minute=int(timestamp_matches[5]),
+            second=int(timestamp_matches[6]),
+            microsecond=int(timestamp_matches[7][0:6]),
+            tzinfo=tz
+        ).astimezone(timezone.utc)
         year, month, day = time.year, time.month, time.day
 
         logfile_dir = f"{save_path}/{year:04d}/{month:02d}"
