@@ -73,7 +73,7 @@ async def process_chat(channel_name: str, messages_generator: Generator[dict, No
 
         # Handle attachments
         # Requires comunity fork: matterbridge-org/matterbridge
-        if 'Extra' in message and 'file' in message['Extra']:
+        if 'Extra' in message and type(message['Extra']) == dict and 'file' in message['Extra']:
             for file in message['Extra']['file']:
                 line = "!Attachment\t"
                 if 'Name' in file:
