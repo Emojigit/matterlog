@@ -2,8 +2,10 @@ from typing import Generator
 from datetime import datetime, timezone, timedelta
 import os
 import re
+import base64
 import signal
 
+import magic
 import configparser
 import asyncio
 import aiofiles
@@ -40,7 +42,6 @@ async def matterbridge_api_listener(base_url: str, sleep_time: int, token: str =
 async def process_chat(channel_name: str, messages_generator: Generator[dict, None, None], save_path: str):
     async for message in messages_generator:
         username = message["username"]
-        text = message["text"]
         # 2025-09-27T11:58:59.936761682-04:00
         timestamp_raw = message["timestamp"]
         timestamp_matches = time_regex.match(timestamp_raw)
@@ -62,6 +63,29 @@ async def process_chat(channel_name: str, messages_generator: Generator[dict, No
             tzinfo=tz
         ).astimezone(timezone.utc)
         year, month, day = time.year, time.month, time.day
+
+        text = message["text"]
+
+        # Handle attachments
+        # Requires comunity fork: matterbridge-org/matterbridge
+        if 'file' in message:
+            for file in message['file']:
+                line = "!Attachment\t"
+                if 'Name' in file:
+                    line += f'name:{file["Name"]}\t'
+                if 'Comment' in file:
+                    comment = file["Comment"].replace(
+                        '\n', ' ').replace('\t', ' ')
+                    line += f'comment:{comment}\t'
+                if 'Size' in file:
+                    line += f'size:{file["Size"]}\t'
+                if 'URL' in file:
+                    line += f'url:{file["URL"]}\t'
+                elif 'Data' in file:
+                    data_base64encode = base64.b64encode(file["Data"])
+                    line += f'b64data:{data_base64encode}\t'
+                    line += f'b64mime:{magic.from_buffer(file["Data"], mime=True)}\t'
+                text += "\n" + line
 
         logfile_dir = f"{save_path}/{year:04d}/{month:02d}"
         logfile_path = f"{logfile_dir}/{day:02d}.txt"
