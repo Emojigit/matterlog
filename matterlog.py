@@ -14,6 +14,8 @@ import aiohttp
 time_regex = re.compile(
     r'(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})\.(\d+)([+-])(\d{2}):(\d{2})')
 
+DEBUG = os.environ.get("DEBUG", "0") == "1"
+
 
 async def matterbridge_api_listener(base_url: str, sleep_time: int, token: str = None) -> Generator[dict, None, None]:
     header = {
@@ -41,6 +43,9 @@ async def matterbridge_api_listener(base_url: str, sleep_time: int, token: str =
 
 async def process_chat(channel_name: str, messages_generator: Generator[dict, None, None], save_path: str):
     async for message in messages_generator:
+        if DEBUG:
+            print(f"DEBUG: Received message: {message}")
+
         username = message["username"]
         # 2025-09-27T11:58:59.936761682-04:00
         timestamp_raw = message["timestamp"]
@@ -68,8 +73,8 @@ async def process_chat(channel_name: str, messages_generator: Generator[dict, No
 
         # Handle attachments
         # Requires comunity fork: matterbridge-org/matterbridge
-        if 'file' in message:
-            for file in message['file']:
+        if 'Extra' in message and 'file' in message['Extra']:
+            for file in message['Extra']['file']:
                 line = "!Attachment\t"
                 if 'Name' in file:
                     line += f'name:{file["Name"]}\t'
@@ -77,7 +82,7 @@ async def process_chat(channel_name: str, messages_generator: Generator[dict, No
                     comment = file["Comment"].replace(
                         '\n', ' ').replace('\t', ' ')
                     line += f'comment:{comment}\t'
-                if 'Size' in file:
+                if 'Size' in file and file["Size"] != 0:
                     line += f'size:{file["Size"]}\t'
                 if 'URL' in file:
                     line += f'url:{file["URL"]}\t'
