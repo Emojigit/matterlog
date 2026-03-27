@@ -79,9 +79,12 @@ async def process_chat(channel_name: str, messages_generator: Generator[dict, No
                 if 'Name' in file:
                     line += f'name:{file["Name"]}\t'
                 if 'Comment' in file:
-                    comment = file["Comment"].replace(
-                        '\n', ' ').replace('\t', ' ')
-                    line += f'comment:{comment}\t'
+                    comment = file["Comment"]
+                    comment = comment.replace('\n', ' ')
+                    comment = comment.replace('\t', ' ')
+                    comment = comment.strip()
+                    if comment != "":
+                        line += f'comment:{comment}\t'
                 if 'Size' in file and file["Size"] != 0:
                     line += f'size:{file["Size"]}\t'
                 if 'URL' in file:
