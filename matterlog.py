@@ -87,6 +87,10 @@ async def process_chat(channel_name: str, messages_generator: Generator[dict, No
                     line += f'b64mime:{magic.from_buffer(file["Data"], mime=True)}\t'
                 text += "\n" + line
 
+        # Prevent attachment injection
+        if text.startswith("!Attachment\t"):
+            text = "Attachment" + text[11:]
+
         logfile_dir = f"{save_path}/{year:04d}/{month:02d}"
         logfile_path = f"{logfile_dir}/{day:02d}.txt"
 
